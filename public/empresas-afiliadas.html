@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empresas Afiliadas — Dr. Edwin Barahona</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e9eaef;
+    --ink:#1c2140;
+    --text-light:#F6F7FC;
+    --text-muted:rgba(246,247,252,0.68);
+    --text-faint:rgba(246,247,252,0.42);
+    --accent-green:#7CE8B0;
+    --accent-green-text:#0E3B27;
+    --accent-amber:#F0C674;
+    --accent-amber-text:#4A3A0B;
+    --accent-red:#F0847A;
+    --accent-red-text:#4A1410;
+    --radius:24px;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); font-family:var(--sans); color:var(--ink);
+    min-height:100vh; padding:28px 16px 80px;
+  }
+  .wrap{ max-width:900px; margin:0 auto; }
+  .topbar{ display:flex; align-items:baseline; justify-content:space-between; padding:0 6px; margin-bottom:22px; }
+  .brand{ font-family:var(--mono); font-size:13px; color:#5a5f78; }
+  .brand b{ color:var(--ink); }
+  .kpi-strip{ display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+  .kpi{
+    flex:1; min-width:150px;
+    background:#fff; border:1px solid #dcdee8; border-radius:18px;
+    padding:14px 16px;
+  }
+  .kpi .num{ font-family:var(--mono); font-size:24px; font-weight:700; color:var(--ink); }
+  .kpi .label{ font-family:var(--mono); font-size:11px; color:#7a7f98; text-transform:uppercase; letter-spacing:0.03em; margin-top:2px; }
+
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; padding:0 4px; }
+  .panel-head h2{ font-family:var(--mono); font-size:20px; margin:0; }
+
+  .btn{
+    font-family:var(--mono); font-size:13.5px; font-weight:600;
+    padding:11px 18px; border-radius:100px; border:1px solid transparent;
+    cursor:pointer; transition:transform .15s, background .2s;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn.primary{ background:var(--ink); color:#fff; }
+  .btn.primary:hover{ background:#2c3260; }
+  .btn.ghost{ background:#fff; border-color:#dcdee8; color:var(--ink); }
+  .btn.ghost:hover{ background:#f2f3f8; }
+  .btn.small{ padding:7px 12px; font-size:12px; }
+
+  .empresa-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:30px; }
+  .empresa-card{
+    border-radius:var(--radius);
+    padding:20px;
+    background:linear-gradient(150deg, #7C93E8, #4661C4);
+    color:var(--text-light);
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition:transform .2s;
+  }
+  .empresa-card:hover{ transform:translateY(-2px); }
+  .empresa-card::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(ellipse at 25% -10%, rgba(255,255,255,0.22), transparent 55%);
+  }
+  .empresa-card .name{ font-family:var(--mono); font-size:19px; font-weight:600; position:relative; }
+  .empresa-card .code{ font-family:var(--mono); font-size:12px; color:var(--text-muted); margin-top:2px; position:relative; }
+  .empresa-card .stats{ display:flex; gap:16px; margin-top:16px; position:relative; }
+  .empresa-card .stat .n{ font-family:var(--mono); font-size:17px; font-weight:700; }
+  .empresa-card .stat .l{ font-family:var(--mono); font-size:10px; color:var(--text-faint); text-transform:uppercase; }
+  .status-badge{
+    position:absolute; top:18px; right:18px;
+    font-family:var(--mono); font-size:11px; font-weight:600;
+    padding:5px 10px; border-radius:100px;
+  }
+  .status-badge.pagado{ background:var(--accent-green); color:var(--accent-green-text); }
+  .status-badge.pendiente{ background:var(--accent-amber); color:var(--accent-amber-text); }
+  .status-badge.vencido{ background:var(--accent-red); color:var(--accent-red-text); }
+
+  .empty-empresas{
+    grid-column:1/-1; text-align:center; padding:40px 20px;
+    font-family:var(--mono); font-size:13px; color:#7a7f98;
+    border:1px dashed #cfd2e0; border-radius:var(--radius);
+  }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,24,50,0.55);
+    display:none; align-items:flex-start; justify-content:center;
+    padding:40px 16px; overflow-y:auto; z-index:100;
+    backdrop-filter:blur(2px);
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    background:#fff; border-radius:26px; width:100%; max-width:560px;
+    padding:26px; box-shadow:0 30px 60px -20px rgba(20,24,50,0.4);
+  }
+  .modal h3{ font-family:var(--mono); margin:0 0 16px; font-size:19px; color:var(--ink); }
+  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+  .field label{ font-family:var(--mono); font-size:11px; text-transform:uppercase; color:#7a7f98; letter-spacing:0.03em; }
+  .field input, .field select{
+    font-family:var(--mono); font-size:14px; padding:10px 12px;
+    border:1px solid #dcdee8; border-radius:12px; outline:none; color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ border-color:#8a93c9; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+  .modal-actions .btn{ flex:1; }
+
+  .detail-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .detail-code{ font-family:var(--mono); font-size:12px; color:#7a7f98; margin-bottom:18px; }
+  .ledger{ display:flex; flex-direction:column; gap:8px; margin:14px 0 18px; max-height:260px; overflow-y:auto; }
+  .ledger-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#f5f6fa; border-radius:12px; padding:10px 14px;
+    font-family:var(--mono); font-size:13px;
+  }
+  .ledger-row .month{ font-weight:600; }
+  .ledger-row .amount{ color:#4a4f68; }
+  .pill{ font-family:var(--mono); font-size:11px; font-weight:600; padding:4px 9px; border-radius:100px; }
+  .pill.pagado{ background:#DAF7E7; color:#0E7A48; }
+  .pill.pendiente{ background:#FCEFD0; color:#8A5B00; }
+  .pill.vencido{ background:#FBDFDC; color:#A32C1F; }
+
+  .filter-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .filter-chip{
+    font-family:var(--mono); font-size:11.5px; padding:6px 12px; border-radius:100px;
+    border:1px solid #dcdee8; background:#fff; cursor:pointer; color:#5a5f78;
+  }
+  .filter-chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; font-family:var(--mono); font-size:13px;
+    padding:12px 20px; border-radius:100px; opacity:0; pointer-events:none;
+    transition:opacity .3s, transform .3s; z-index:200;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:640px){
+    .empresa-grid{ grid-template-columns:1fr; }
+    .two-col{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><b>Dr. Edwin Barahona</b> · empresas afiliadas</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi"><div class="num" id="kpiTotal">0</div><div class="label">Empresas activas</div></div>
+    <div class="kpi"><div class="num" id="kpiEmpleados">0</div><div class="label">Empleados afiliados</div></div>
+    <div class="kpi"><div class="num" id="kpiPagado">L. 0</div><div class="label">Cobrado este mes</div></div>
+    <div class="kpi"><div class="num" id="kpiPendiente">0</div><div class="label">Empresas con pago pendiente</div></div>
+  </div>
+
+  <div class="panel-head">
+    <h2>Empresas</h2>
+    <button class="btn primary" id="btnNueva">+ Nueva empresa</button>
+  </div>
+
+  <div class="empresa-grid" id="empresaGrid"></div>
+</div>
+
+<div class="overlay" id="overlayNueva">
+  <div class="modal">
+    <h3>Nueva empresa afiliada</h3>
+    <div class="field">
+      <label>Nombre de la empresa</label>
+      <input type="text" id="nEmpresaNombre" placeholder="Ej. IBEX Global Solutions">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Código de afiliación</label>
+        <input type="text" id="nEmpresaCodigo" placeholder="Se genera automático">
+      </div>
+      <div class="field">
+        <label>Empleados afiliados (inicial)</label>
+        <input type="number" id="nEmpresaEmpleados" placeholder="Ej. 45">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Cuota por empleado (L./mes)</label>
+        <input type="number" id="nEmpresaCuota" placeholder="Ej. 150">
+      </div>
+      <div class="field">
+        <label>Día de corte de pago</label>
+        <input type="number" id="nEmpresaCorte" min="1" max="28" placeholder="Ej. 5">
+      </div>
+    </div>
+    <div class="field">
+      <label>Contacto de la empresa</label>
+      <input type="text" id="nEmpresaContacto" placeholder="Nombre y teléfono de RRHH">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelNueva">Cancelar</button>
+      <button class="btn primary" id="guardarNueva">Guardar empresa</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayDetalle">
+  <div class="modal" style="max-width:600px;">
+    <div class="detail-header">
+      <div>
+        <h3 id="dNombre" style="margin-bottom:2px;">—</h3>
+        <div class="detail-code" id="dCodigo">—</div>
+      </div>
+      <span class="status-badge" id="dEstadoBadge" style="position:static;">—</span>
+    </div>
+
+    <div class="two-col" style="margin-bottom:16px;">
+      <div class="kpi" style="margin:0;"><div class="num" id="dEmpleados">0</div><div class="label">Empleados afiliados</div></div>
+      <div class="kpi" style="margin:0;"><div class="num" id="dCuotaTotal">L. 0</div><div class="label">Cuota mensual total</div></div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-chip active" data-filter="todos">Todos</div>
+      <div class="filter-chip" data-filter="pagado">Pagados</div>
+      <div class="filter-chip" data-filter="pendiente">Pendientes</div>
+    </div>
+
+    <div class="ledger" id="ledgerList"></div>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="cerrarDetalle">Cerrar</button>
+      <button class="btn primary" id="marcarPagado">Marcar mes actual como pagado</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Guardado</div>
+
+<script>
+  const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  let empresas = [
+    {
+      id:1, nombre:'IBEX', codigo:'IBEX-001', empleados:52, cuota:150, corte:5,
+      contacto:'Ana Reyes · 9988-1122',
+      pagos:[
+        {mes:'2026-04', estado:'pagado', monto:7800},
+        {mes:'2026-05', estado:'pagado', monto:7800},
+        {mes:'2026-06', estado:'pagado', monto:7800},
+        {mes:'2026-07', estado:'pendiente', monto:7800},
+      ]
+    }
+  ];
+  let nextId = 2;
+  let currentDetailId = null;
+  let currentFilter = 'todos';
+
+  function money(n){ return 'L. ' + Number(n).toLocaleString('es-HN'); }
+
+  function estadoDeEmpresa(emp){
+    const hoy = new Date();
+    const mesActual = hoy.toISOString().slice(0,7);
+    const pagoMesActual = emp.pagos.find(p=>p.mes===mesActual);
+    if(pagoMesActual && pagoMesActual.estado==='pagado') return 'pagado';
+    const diaHoy = hoy.getDate();
+    if(diaHoy > emp.corte) return 'vencido';
+    return 'pendiente';
+  }
+
+  function renderGrid(){
+    const grid = document.getElementById('empresaGrid');
+    grid.innerHTML = '';
+    if(empresas.length===0){
+      grid.innerHTML = `<div class="empty-empresas">Todavía no has agregado empresas afiliadas.<br>Usa "+ Nueva empresa" para comenzar.</div>`;
+    }
+    empresas.forEach(emp=>{
+      const estado = estadoDeEmpresa(emp);
+      const card = document.createElement('div');
+      card.className = 'empresa-card';
+      card.innerHTML = `
+        <span class="status-badge ${estado}">${estado}</span>
+        <div class="name">${emp.nombre}</div>
+        <div class="code">${emp.codigo}</div>
+        <div class="stats">
+          <div class="stat"><div class="n">${emp.empleados}</div><div class="l">Empleados</div></div>
+          <div class="stat"><div class="n">${money(emp.cuota)}</div><div class="l">Por empleado</div></div>
+          <div class="stat"><div class="n">Día ${emp.corte}</div><div class="l">Corte de pago</div></div>
+        </div>
+      `;
+      card.addEventListener('click', ()=> openDetalle(emp.id));
+      grid.appendChild(card);
+    });
+    updateKpis();
+  }
+
+  function updateKpis(){
+    document.getElementById('kpiTotal').textContent = empresas.length;
+    document.getElementById('kpiEmpleados').textContent = empresas.reduce((a,e)=>a+Number(e.empleados),0);
+    const hoy = new Date().toISOString().slice(0,7);
+    const cobradoMes = empresas.reduce((acc,e)=>{
+      const p = e.pagos.find(x=>x.mes===hoy && x.estado==='pagado');
+      return acc + (p ? p.monto : 0);
+    },0);
+    document.getElementById('kpiPagado').textContent = money(cobradoMes);
+    const pendientes = empresas.filter(e=> estadoDeEmpresa(e)!=='pagado').length;
+    document.getElementById('kpiPendiente').textContent = pendientes;
+  }
+
+  const overlayNueva = document.getElementById('overlayNueva');
+  document.getElementById('btnNueva').addEventListener('click', ()=>{
+    document.getElementById('nEmpresaNombre').value='';
+    document.getElementById('nEmpresaCodigo').value='';
+    document.getElementById('nEmpresaEmpleados').value='';
+    document.getElementById('nEmpresaCuota').value='150';
+    document.getElementById('nEmpresaCorte').value='5';
+    document.getElementById('nEmpresaContacto').value='';
+    overlayNueva.classList.add('show');
+  });
+  document.getElementById('cancelNueva').addEventListener('click', ()=> overlayNueva.classList.remove('show'));
+  overlayNueva.addEventListener('click', (e)=>{ if(e.target===overlayNueva) overlayNueva.classList.remove('show'); });
+
+  document.getElementById('nEmpresaNombre').addEventListener('input', (e)=>{
+    const codigoField = document.getElementById('nEmpresaCodigo');
+    if(!codigoField.dataset.touched){
+      const base = e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6) || 'EMP';
+      codigoField.value = `${base}-001`;
+    }
+  });
+  document.getElementById('nEmpresaCodigo').addEventListener('input', (e)=>{ e.target.dataset.touched='true'; });
+
+  document.getElementById('guardarNueva').addEventListener('click', ()=>{
+    const nombre = document.getElementById('nEmpresaNombre').value.trim();
+    if(!nombre){ showToast('Escribe el nombre de la empresa'); return; }
+    const codigo = document.getElementById('nEmpresaCodigo').value.trim() || `EMP-${String(nextId).padStart(3,'0')}`;
+    const empleados = Number(document.getElementById('nEmpresaEmpleados').value)||0;
+    const cuota = Number(document.getElementById('nEmpresaCuota').value)||0;
+    const corte = Number(document.getElementById('nEmpresaCorte').value)||5;
+    const contacto = document.getElementById('nEmpresaContacto').value.trim();
+    empresas.push({ id:nextId++, nombre, codigo, empleados, cuota, corte, contacto, pagos:[] });
+    renderGrid();
+    overlayNueva.classList.remove('show');
+    showToast('Empresa agregada');
+  });
+
+  const overlayDetalle = document.getElementById('overlayDetalle');
+  function openDetalle(id){
+    currentDetailId = id;
+    currentFilter = 'todos';
+    document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('.filter-chip[data-filter="todos"]').classList.add('active');
+    renderDetalle();
+    overlayDetalle.classList.add('show');
+  }
+  function renderDetalle(){
+    const emp = empresas.find(e=>e.id===currentDetailId);
+    if(!emp) return;
+    document.getElementById('dNombre').textContent = emp.nombre;
+    document.getElementById('dCodigo').textContent = `${emp.codigo} · corte día ${emp.corte} · ${emp.contacto||'sin contacto registrado'}`;
+    document.getElementById('dEmpleados').textContent = emp.empleados;
+    document.getElementById('dCuotaTotal').textContent = money(emp.empleados*emp.cuota);
+    const estado = estadoDeEmpresa(emp);
+    const badge = document.getElementById('dEstadoBadge');
+    badge.textContent = estado;
+    badge.className = 'status-badge ' + estado;
+
+    const list = document.getElementById('ledgerList');
+    let pagos = [...emp.pagos].sort((a,b)=> b.mes.localeCompare(a.mes));
+    if(currentFilter !== 'todos') pagos = pagos.filter(p=>p.estado===currentFilter);
+    list.innerHTML = pagos.length ? '' : `<div class="empty-empresas" style="padding:20px;">Sin registros de pago con este filtro</div>`;
+    pagos.forEach(p=>{
+      const [y,m] = p.mes.split('-');
+      const label = `${MESES[Number(m)-1]} ${y}`;
+      const row = document.createElement('div');
+      row.className = 'ledger-row';
+      row.innerHTML = `<span class="month">${label}</span><span class="amount">${money(p.monto)}</span><span class="pill ${p.estado}">${p.estado}</span>`;
+      list.appendChild(row);
+    });
+  }
+  document.querySelectorAll('.filter-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      renderDetalle();
+    });
+  });
+  document.getElementById('cerrarDetalle').addEventListener('click', ()=> overlayDetalle.classList.remove('show'));
+  overlayDetalle.addEventListener('click', (e)=>{ if(e.target===overlayDetalle) overlayDetalle.classList.remove('show'); });
+
+  document.getElementById('marcarPagado').addEventListener('click', ()=>{
+    const emp = empresas.find(e=>e.id===currentDetailId);
+    if(!emp) return;
+    const mesActual = new Date().toISOString().slice(0,7);
+    let pago = emp.pagos.find(p=>p.mes===mesActual);
+    const monto = emp.empleados*emp.cuota;
+    if(pago){ pago.estado='pagado'; pago.monto=monto; }
+    else { emp.pagos.push({mes:mesActual, estado:'pagado', monto}); }
+    renderDetalle();
+    renderGrid();
+    showToast('Mes actual marcado como pagado');
+  });
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+
+  renderGrid();
+</script>
+</body>
+</html>
