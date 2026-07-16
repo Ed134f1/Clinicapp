@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expediente Médico — Dr. Edwin Barahona</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e9eaef;
+    --card-blue-1:#7C93E8;
+    --card-blue-2:#5A76D8;
+    --card-blue-3:#4661C4;
+    --card-sand:#D9B98C;
+    --ink:#1c2140;
+    --text-light:#F6F7FC;
+    --text-muted:rgba(246,247,252,0.68);
+    --text-faint:rgba(246,247,252,0.42);
+    --accent-green:#7CE8B0;
+    --accent-green-text:#0E3B27;
+    --alert-red:#F0847A;
+    --radius:28px;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family:var(--sans);
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 80px;
+  }
+  .topbar{
+    max-width:720px;
+    margin:0 auto 22px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding:0 6px;
+  }
+  .brand{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:0.02em;
+    color:#5a5f78;
+  }
+  .brand b{color:var(--ink);}
+  .expediente-tag{
+    font-family:var(--mono);
+    font-size:12px;
+    color:#7a7f98;
+    background:#fff;
+    border:1px solid #dcdee8;
+    padding:5px 10px;
+    border-radius:100px;
+  }
+
+  .stack{
+    max-width:720px;
+    margin:0 auto;
+    position:relative;
+  }
+
+  .card{
+    position:relative;
+    border-radius:var(--radius);
+    padding:26px 26px 24px;
+    color:var(--text-light);
+    overflow:hidden;
+    cursor:pointer;
+    transition:transform .45s cubic-bezier(.2,.8,.2,1), margin .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s;
+    box-shadow:0 18px 40px -18px rgba(30,40,90,0.35);
+    background:linear-gradient(160deg, var(--card-blue-1), var(--card-blue-3));
+  }
+  .card::before{
+    content:"";
+    position:absolute; inset:0;
+    background:radial-gradient(ellipse at 30% -10%, rgba(255,255,255,0.22), transparent 55%);
+    pointer-events:none;
+  }
+  .card + .card{ margin-top:-56px; }
+  .card[data-open="true"]{
+    cursor:default;
+    margin-top:18px;
+  }
+  .card[data-open="true"] + .card{ margin-top:18px; }
+
+  .card.tone-antecedentes{ background:linear-gradient(160deg, #6E86E0, #3E58BE); }
+  .card.tone-consultas{ background:linear-gradient(160deg, #7C93E8 0%, #8E7FC9 55%, var(--card-sand) 130%); }
+  .card[data-open="true"].tone-consultas{ background:linear-gradient(165deg, #7C93E8 0%, #8E7FC9 45%, var(--card-sand) 100%); }
+
+  .card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.03em;
+    color:var(--text-faint);
+  }
+  .card-title{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:600;
+    margin:6px 0 0;
+    letter-spacing:-0.01em;
+  }
+  .chev{
+    width:34px;height:34px;border-radius:50%;
+    background:rgba(255,255,255,0.14);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    transition:transform .35s;
+  }
+  .card[data-open="true"] .chev{ transform:rotate(180deg); }
+  .chev svg{width:15px;height:15px;}
+
+  .card-summary{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--text-muted);
+    margin-top:10px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .card-body{
+    max-height:0;
+    opacity:0;
+    overflow:hidden;
+    transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
+  }
+  .card[data-open="true"] .card-body{
+    max-height:3200px;
+    opacity:1;
+    margin-top:18px;
+  }
+
+  .divider{
+    height:1px;
+    background:rgba(255,255,255,0.18);
+    margin:18px 0;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .grid.single{ grid-template-columns:1fr; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.span2{ grid-column:1 / -1; }
+  label{
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    text-transform:uppercase;
+  }
+  input[type=text], input[type=number], input[type=date], input[type=tel], input[type=email], select, textarea{
+    font-family:var(--mono);
+    font-size:14.5px;
+    color:var(--text-light);
+    background:rgba(255,255,255,0.10);
+    border:1px solid rgba(255,255,255,0.22);
+    border-radius:12px;
+    padding:10px 12px;
+    outline:none;
+    width:100%;
+    transition:border-color .2s, background .2s;
+  }
+  input::placeholder, textarea::placeholder{ color:rgba(246,247,252,0.35); }
+  input:focus, select:focus, textarea:focus{
+    border-color:rgba(255,255,255,0.55);
+    background:rgba(255,255,255,0.16);
+  }
+  input:read-only{ opacity:0.75; }
+  select{ appearance:none; }
+  select option{ color:#111; }
+  textarea{ resize:vertical; min-height:64px; line-height:1.5; }
+
+  .readonly-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--mono);
+    font-size:13px;
+    background:rgba(255,255,255,0.10);
+    border:1px solid rgba(255,255,255,0.22);
+    border-radius:12px;
+    padding:10px 12px;
+    color:var(--text-light);
+  }
+  .readonly-pill .dot{ width:6px;height:6px;border-radius:50%;background:var(--accent-green); }
+
+  .segmented{ display:flex; gap:8px; }
+  .seg-btn{
+    flex:1;
+    font-family:var(--mono);
+    font-size:13.5px;
+    text-align:center;
+    padding:10px 8px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.22);
+    background:rgba(255,255,255,0.08);
+    color:var(--text-muted);
+    cursor:pointer;
+    transition:all .2s;
+  }
+  .seg-btn.active{
+    background:var(--accent-green);
+    color:var(--accent-green-text);
+    border-color:var(--accent-green);
+    font-weight:600;
+  }
+
+  .unit-field{ position:relative; }
+  .unit-field input{ padding-right:52px; }
+  .unit-toggle{
+    position:absolute;
+    right:6px; top:50%; transform:translateY(-50%);
+    font-family:var(--mono);
+    font-size:11px;
+    background:rgba(255,255,255,0.18);
+    border:none;
+    color:var(--text-light);
+    padding:5px 9px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+
+  .row-inline{ display:flex; gap:10px; align-items:flex-end; }
+  .row-inline .field{ flex:1; }
+
+  .whatsapp-btn{
+    display:flex; align-items:center; justify-content:center;
+    width:42px; height:42px; flex-shrink:0;
+    border-radius:12px;
+    background:rgba(255,255,255,0.14);
+    border:1px solid rgba(255,255,255,0.22);
+    color:var(--text-light);
+    cursor:pointer;
+    text-decoration:none;
+  }
+  .whatsapp-btn svg{ width:18px; height:18px; }
+
+  .section-label{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--text-muted);
+    margin:2px 0 -2px;
+  }
+
+  .hint{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:2px;
+  }
+  .alert-hint{ color:#FFD9D4; }
+
+  .ago-block{
+    border:1px dashed rgba(255,255,255,0.28);
+    border-radius:14px;
+    padding:14px;
+    margin-top:4px;
+  }
+
+  .action-row{ display:flex; gap:10px; margin-top:20px; }
+  .btn{
+    font-family:var(--mono);
+    font-size:14px;
+    font-weight:600;
+    padding:13px 20px;
+    border-radius:100px;
+    border:1px solid rgba(255,255,255,0.24);
+    background:rgba(255,255,255,0.10);
+    color:var(--text-light);
+    cursor:pointer;
+    text-align:center;
+    flex:1;
+    transition:transform .15s, background .2s;
+  }
+  .btn:hover{ background:rgba(255,255,255,0.18); }
+  .btn:active{ transform:scale(0.98); }
+  .btn.primary{
+    background:var(--accent-green);
+    color:var(--accent-green-text);
+    border-color:var(--accent-green);
+  }
+  .btn.primary:hover{ background:#8CF2BE; }
+
+  .consulta-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .consulta-item{
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(255,255,255,0.10);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:14px;
+    padding:12px 14px;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .consulta-item:hover{ background:rgba(255,255,255,0.18); }
+  .consulta-item .date{ font-family:var(--mono); font-size:14px; font-weight:600; }
+  .consulta-item .sub{ font-family:var(--mono); font-size:11.5px; color:var(--text-muted); }
+  .consulta-item .arrow{ font-family:var(--mono); font-size:16px; color:var(--text-muted); }
+  .empty-state{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--text-muted);
+    text-align:center;
+    padding:22px 10px;
+    border:1px dashed rgba(255,255,255,0.25);
+    border-radius:14px;
+  }
+
+  .toast{
+    position:fixed;
+    left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink);
+    color:#fff;
+    font-family:var(--mono);
+    font-size:13px;
+    padding:12px 20px;
+    border-radius:100px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .3s, transform .3s;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:560px){
+    .grid{ grid-template-columns:1fr; }
+    .card-title{ font-size:22px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand"><b>Dr. Edwin Barahona</b> · consulta médica</div>
+    <div class="expediente-tag" id="expedienteTag">EXP-2026-000114</div>
+  </div>
+
+  <div class="stack">
+
+    <!-- CARD 1: DATOS GENERALES -->
+    <div class="card" id="cardGenerales" data-open="true" data-name="generales">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">01 · expediente</div>
+          <h2 class="card-title">Datos Generales</h2>
+        </div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="card-summary" id="summaryGenerales">Sin datos ingresados todavía</div>
+
+      <div class="card-body">
+        <div class="divider"></div>
+        <div class="grid">
+          <div class="field span2">
+            <label>Nombre completo</label>
+            <input type="text" id="nombre" placeholder="Nombre y apellidos del paciente">
+          </div>
+
+          <div class="field">
+            <label>DNI</label>
+            <input type="number" id="dni" placeholder="0801-1990-01234">
+          </div>
+          <div class="field">
+            <label>Correo electrónico</label>
+            <input type="email" id="correo" placeholder="paciente@correo.com">
+          </div>
+
+          <div class="field">
+            <label>Fecha de nacimiento</label>
+            <input type="date" id="fechaNacimiento">
+          </div>
+          <div class="field">
+            <label>Edad</label>
+            <input type="text" id="edad" placeholder="Se calcula automáticamente">
+            <span class="hint" id="edadHint">También puedes escribirla manualmente</span>
+          </div>
+
+          <div class="field">
+            <label>Sexo</label>
+            <div class="segmented">
+              <div class="seg-btn active" data-group="sexo" data-value="M">Masculino</div>
+              <div class="seg-btn" data-group="sexo" data-value="F">Femenino</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Estado civil</label>
+            <select id="estadoCivil">
+              <option value="">Seleccionar…</option>
+              <option>Soltero/a</option>
+              <option>Casado/a</option>
+              <option>Unión libre</option>
+              <option>Divorciado/a</option>
+              <option>Viudo/a</option>
+            </select>
+          </div>
+
+          <div class="field span2">
+            <label>Número de teléfono</label>
+            <div class="row-inline">
+              <input type="tel" id="telefono" placeholder="9999-9999">
+              <a class="whatsapp-btn" id="whatsappBtn" href="#" target="_blank" title="Enviar WhatsApp">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.33 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.86 9.86 0 0 0 12.04 2m0 1.67c2.2 0 4.27.86 5.82 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.24-8.25 8.24a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.14.82.84-3.06-.2-.32a8.18 8.18 0 0 1-1.25-4.37c0-4.55 3.7-8.25 8.25-8.25M8.53 6.77c-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.25 3.74.6.26 1.06.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.48-.6 1.69-1.19s.21-1.08.15-1.19c-.06-.1-.23-.16-.48-.28-.25-.13-1.48-.73-1.71-.81-.23-.08-.4-.13-.56.13-.17.25-.64.81-.79.98-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.99-1.23-.73-.66-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.44.12-.14.16-.25.24-.41.08-.17.04-.31-.02-.44-.06-.13-.56-1.37-.78-1.87-.2-.48-.41-.42-.56-.43z"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Ocupación</label>
+            <input type="text" id="ocupacion" placeholder="Ej. Analista de call center">
+          </div>
+          <div class="field">
+            <label>Lugar de trabajo / Empresa afiliada</label>
+            <select id="empresa">
+              <option value="">Paciente particular (sin convenio)</option>
+              <option value="IBEX">IBEX</option>
+              <option value="OTRA">Otra empresa afiliada…</option>
+            </select>
+          </div>
+
+          <div class="field span2">
+            <label>Lugar de residencia</label>
+            <input type="text" id="residencia" placeholder="Colonia, ciudad">
+          </div>
+
+          <div class="field">
+            <label>Número de póliza</label>
+            <div class="readonly-pill"><span class="dot"></span><span id="poliza">— sin empresa afiliada —</span></div>
+          </div>
+          <div class="field">
+            <label>Número de expediente clínico</label>
+            <div class="readonly-pill"><span class="dot"></span><span id="expedienteId">EXP-2026-000114</span></div>
+          </div>
+
+          <div class="field">
+            <label>Nivel educativo</label>
+            <select id="nivelEducativo">
+              <option value="">Seleccionar…</option>
+              <option>Analfabeta</option>
+              <option>Educación básica / primaria</option>
+              <option>Secundaria</option>
+              <option>Técnico / vocacional</option>
+              <option>Universitario</option>
+              <option>Postgrado</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tipo de sangre</label>
+            <select id="tipoSangre">
+              <option value="">Seleccionar…</option>
+              <option>O+</option><option>O-</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option>
+              <option>No sabe</option>
+            </select>
+          </div>
+
+          <div class="field span2">
+            <label>Contacto de emergencia</label>
+            <div class="row-inline">
+              <input type="text" id="contactoNombre" placeholder="Nombre del contacto">
+              <input type="tel" id="contactoTelefono" placeholder="Teléfono" style="max-width:150px;">
+            </div>
+          </div>
+
+          <div class="field span2">
+            <label>Seguro médico privado (si aplica)</label>
+            <input type="text" id="seguroPrivado" placeholder="Aseguradora y número de póliza, si tiene">
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn primary" id="saveGenerales">Guardar datos generales</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: ANTECEDENTES -->
+    <div class="card tone-antecedentes" id="cardAntecedentes" data-open="false" data-name="antecedentes">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">02 · expediente</div>
+          <h2 class="card-title">Antecedentes</h2>
+        </div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="card-summary" id="summaryAntecedentes">APP · AF · AQX · alergias · AGO</div>
+
+      <div class="card-body">
+        <div class="divider"></div>
+        <div class="grid single">
+          <div class="field">
+            <label>Antecedentes personales patológicos (APP)</label>
+            <textarea id="app" placeholder="Enfermedades crónicas, diagnósticos previos…"></textarea>
+          </div>
+          <div class="field">
+            <label>Antecedentes familiares (AF)</label>
+            <textarea id="af" placeholder="Enfermedades relevantes en familiares directos…"></textarea>
+          </div>
+          <div class="field">
+            <label>Antecedentes quirúrgicos (AQX)</label>
+            <textarea id="aqx" placeholder="Cirugías previas y fechas aproximadas…"></textarea>
+          </div>
+          <div class="field">
+            <label>Antecedentes alérgicos</label>
+            <textarea id="alergias" placeholder="Medicamentos, alimentos, otros…"></textarea>
+            <span class="hint alert-hint">Este campo se resaltará en la historia clínica de cada consulta</span>
+          </div>
+          <div class="field">
+            <label>Antecedentes no patológicos</label>
+            <textarea id="anp" placeholder="Tabaco, alcohol, otras sustancias, actividad física, alimentación…"></textarea>
+          </div>
+
+          <div class="field" id="agoField">
+            <label>Antecedentes gineco-obstétricos (AGO)</label>
+            <div class="ago-block">
+              <div class="grid">
+                <div class="field">
+                  <label>Menarca (edad)</label>
+                  <input type="text" id="agoMenarca" placeholder="Ej. 12 años">
+                </div>
+                <div class="field">
+                  <label>Fórmula G/P/C/A</label>
+                  <input type="text" id="agoFormula" placeholder="Gestas/Partos/Cesáreas/Abortos">
+                </div>
+                <div class="field">
+                  <label>FUM (fecha última menstruación)</label>
+                  <input type="date" id="agoFum">
+                </div>
+                <div class="field">
+                  <label>Método de planificación</label>
+                  <input type="text" id="agoPlanificacion" placeholder="Si usa alguno">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn primary" id="saveAntecedentes">Guardar antecedentes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 3: CONSULTAS DEL PACIENTE -->
+    <div class="card tone-consultas" id="cardConsultas" data-open="false" data-name="consultas">
+      <div class="card-head">
+        <div>
+          <div class="eyebrow">03 · expediente</div>
+          <h2 class="card-title">Consultas</h2>
+        </div>
+        <div class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="card-summary" id="summaryConsultas">3 consultas registradas · última: 02 jul 2026</div>
+
+      <div class="card-body">
+        <div class="divider"></div>
+        <div class="consulta-list" id="consultaList">
+          <div class="consulta-item" data-mock="1">
+            <div>
+              <div class="date">02 jul 2026 · 4:40 PM</div>
+              <div class="sub">Consulta general · cobrada</div>
+            </div>
+            <div class="arrow">→</div>
+          </div>
+          <div class="consulta-item" data-mock="2">
+            <div>
+              <div class="date">14 mar 2026 · 5:10 PM</div>
+              <div class="sub">Control · IBEX</div>
+            </div>
+            <div class="arrow">→</div>
+          </div>
+          <div class="consulta-item" data-mock="3">
+            <div>
+              <div class="date">03 ene 2026 · 3:20 PM</div>
+              <div class="sub">Consulta general · cobrada</div>
+            </div>
+            <div class="arrow">→</div>
+          </div>
+        </div>
+        <span class="hint" style="margin-bottom:14px;display:block;">La ventana de historia clínica de cada consulta (Paso 4) se conecta aquí.</span>
+        <div class="action-row">
+          <button class="btn primary" id="newConsulta">+ Nueva consulta</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast">Guardado</div>
+
+<script>
+  // ---------- Accordion behaviour (stacked-card interaction) ----------
+  const cards = Array.from(document.querySelectorAll('.card'));
+  cards.forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(card.dataset.open === 'true') return; // clicks inside open card don't collapse it
+      cards.forEach(c=> c.dataset.open = (c===card) ? 'true' : 'false');
+    });
+  });
+  // allow clicking the header of an already-open card to collapse it
+  document.querySelectorAll('.card-head').forEach(head=>{
+    head.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const card = head.closest('.card');
+      const willOpen = card.dataset.open !== 'true';
+      cards.forEach(c=> c.dataset.open = 'false');
+      card.dataset.open = willOpen ? 'true' : 'false';
+    });
+  });
+
+  // ---------- Segmented control (Sexo) ----------
+  let sexo = 'M';
+  document.querySelectorAll('[data-group="sexo"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('[data-group="sexo"]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      sexo = btn.dataset.value;
+      toggleAGO();
+    });
+  });
+  function toggleAGO(){
+    document.getElementById('agoField').style.display = (sexo === 'F') ? 'flex' : 'none';
+  }
+  toggleAGO();
+
+  // ---------- Edad automática ----------
+  const fechaNacimiento = document.getElementById('fechaNacimiento');
+  const edadInput = document.getElementById('edad');
+  fechaNacimiento.addEventListener('change', ()=>{
+    if(!fechaNacimiento.value) return;
+    const nacimiento = new Date(fechaNacimiento.value + 'T00:00:00');
+    const hoy = new Date();
+    let years = hoy.getFullYear() - nacimiento.getFullYear();
+    let months = hoy.getMonth() - nacimiento.getMonth();
+    let days = hoy.getDate() - nacimiento.getDate();
+    if(days < 0){
+      months -= 1;
+      const prevMonth = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if(months < 0){ years -= 1; months += 12; }
+
+    let totalDays = Math.floor((hoy - nacimiento) / (1000*60*60*24));
+
+    if(years < 1 && months < 1){
+      edadInput.value = `${totalDays} día(s)`;
+    } else if(years < 1){
+      edadInput.value = `${months} mes(es), ${days} día(s)`;
+    } else if(years < 5){
+      edadInput.value = `${years} año(s), ${months} mes(es)`;
+    } else {
+      edadInput.value = `${years} año(s)`;
+    }
+    edadInput.dataset.auto = 'true';
+  });
+  edadInput.addEventListener('input', ()=>{ edadInput.dataset.auto = 'false'; });
+
+  // ---------- WhatsApp link ----------
+  const telefono = document.getElementById('telefono');
+  const whatsappBtn = document.getElementById('whatsappBtn');
+  telefono.addEventListener('input', ()=>{
+    const digits = telefono.value.replace(/\D/g,'');
+    const withCode = digits.length === 8 ? '504'+digits : digits;
+    whatsappBtn.href = digits ? `https://wa.me/${withCode}` : '#';
+  });
+
+  // ---------- Empresa / póliza ----------
+  const empresaSelect = document.getElementById('empresa');
+  const polizaEl = document.getElementById('poliza');
+  let polizaCounters = { IBEX: 12 }; // mock starting counters
+  empresaSelect.addEventListener('change', ()=>{
+    const val = empresaSelect.value;
+    if(!val){
+      polizaEl.textContent = '— sin empresa afiliada —';
+    } else if(val === 'OTRA'){
+      polizaEl.textContent = 'Configura la empresa primero';
+    } else {
+      polizaCounters[val] = (polizaCounters[val]||0) + 1;
+      polizaEl.textContent = `${val}-${String(polizaCounters[val]).padStart(4,'0')}`;
+    }
+    updateSummaryGenerales();
+  });
+
+  // ---------- Expediente clínico automático (mock) ----------
+  const expedienteId = document.getElementById('expedienteId');
+  const expedienteTag = document.getElementById('expedienteTag');
+  // ya viene pre-generado en esta demo — en producción se asigna al crear el paciente
+
+  // ---------- Resumen de tarjetas colapsadas ----------
+  function updateSummaryGenerales(){
+    const nombre = document.getElementById('nombre').value || 'Paciente sin nombre';
+    const emp = empresaSelect.value ? (empresaSelect.value === 'OTRA' ? 'empresa por definir' : empresaSelect.value) : 'particular';
+    document.getElementById('summaryGenerales').textContent = `${nombre} · ${emp} · ${edadInput.value || 'edad no definida'}`;
+  }
+  ['nombre'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', updateSummaryGenerales);
+  });
+  edadInput.addEventListener('input', updateSummaryGenerales);
+  fechaNacimiento.addEventListener('change', updateSummaryGenerales);
+
+  // ---------- Guardar (placeholder de este paso) ----------
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2200);
+  }
+  document.getElementById('saveGenerales').addEventListener('click',(e)=>{
+    e.stopPropagation();
+    showToast('Datos generales guardados');
+  });
+  document.getElementById('saveAntecedentes').addEventListener('click',(e)=>{
+    e.stopPropagation();
+    showToast('Antecedentes guardados');
+  });
+  document.getElementById('newConsulta').addEventListener('click',(e)=>{
+    e.stopPropagation();
+    showToast('La ventana de nueva consulta se construye en el Paso 4');
+  });
+  document.querySelectorAll('.consulta-item').forEach(item=>{
+    item.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      showToast('Se abrirá la historia clínica de esta fecha (Paso 4)');
+    });
+  });
+</script>
+
+<script type="module">
+  import { listarEmpresas, guardarPaciente, guardarAntecedentes, generarNumeroExpediente,
+           generarNumeroPoliza } from './api-supabase.js';
+
+  let pacienteGuardadoId = null; // se llena tras el primer guardado exitoso
+
+  // ---------- Cargar empresas reales en el dropdown ----------
+  async function cargarEmpresas(){
+    try{
+      const empresas = await listarEmpresas();
+      const select = document.getElementById('empresa');
+      // conserva la opción "particular" y agrega las reales de la base de datos
+      select.innerHTML = '<option value="">Paciente particular (sin convenio)</option>';
+      empresas.forEach(e=>{
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.dataset.codigo = e.codigo_afiliacion;
+        opt.textContent = e.nombre;
+        select.appendChild(opt);
+      });
+    } catch(err){
+      console.warn('No se pudieron cargar las empresas desde la base de datos:', err.message);
+      showToast('Conecta tu proyecto de Supabase en api-supabase.js para ver empresas reales aquí');
+    }
+  }
+
+  // ---------- Número de expediente real al cargar la pantalla ----------
+  async function inicializarExpediente(){
+    try{
+      const numero = await generarNumeroExpediente();
+      document.getElementById('expedienteId').textContent = numero;
+      document.getElementById('expedienteTag').textContent = numero;
+    } catch(err){
+      console.warn('No se pudo generar el número de expediente real:', err.message);
+    }
+  }
+
+  // ---------- Reemplaza el botón de guardar datos generales por la versión real ----------
+  const oldSaveGenerales = document.getElementById('saveGenerales');
+  const saveGeneralesBtn = oldSaveGenerales.cloneNode(true);
+  oldSaveGenerales.replaceWith(saveGeneralesBtn);
+  saveGeneralesBtn.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    const empresaSelect = document.getElementById('empresa');
+    const empresaId = empresaSelect.value || null;
+
+    const datos = {
+      numero_expediente: document.getElementById('expedienteId').textContent,
+      nombre_completo: document.getElementById('nombre').value,
+      dni: document.getElementById('dni').value,
+      fecha_nacimiento: document.getElementById('fechaNacimiento').value || null,
+      edad_manual: document.getElementById('edad').value,
+      sexo: document.querySelector('[data-group="sexo"].active').dataset.value,
+      estado_civil: document.getElementById('estadoCivil').value,
+      telefono: document.getElementById('telefono').value,
+      ocupacion: document.getElementById('ocupacion').value,
+      empresa_id: empresaId,
+      lugar_residencia: document.getElementById('residencia').value,
+      nivel_educativo: document.getElementById('nivelEducativo').value,
+      correo: document.getElementById('correo').value,
+      tipo_sangre: document.getElementById('tipoSangre').value,
+      contacto_emergencia_nombre: document.getElementById('contactoNombre').value,
+      contacto_emergencia_telefono: document.getElementById('contactoTelefono').value,
+      seguro_privado: document.getElementById('seguroPrivado').value,
+    };
+
+    if(!datos.nombre_completo){ showToast('Escribe el nombre del paciente'); return; }
+
+    try{
+      const paciente = await guardarPaciente(datos);
+      pacienteGuardadoId = paciente.id;
+
+      if(empresaId){
+        const codigoEmpresa = document.querySelector(`#empresa option[value="${empresaId}"]`).dataset.codigo;
+        const poliza = await generarNumeroPoliza(empresaId, codigoEmpresa);
+        document.getElementById('poliza').textContent = poliza;
+      }
+      showToast('Paciente guardado en la base de datos');
+    } catch(err){
+      console.error(err);
+      showToast('No se pudo guardar — revisa que api-supabase.js tenga tu URL y llave de Supabase');
+    }
+  });
+
+  // ---------- Reemplaza el botón de guardar antecedentes por la versión real ----------
+  const oldSaveAntecedentes = document.getElementById('saveAntecedentes');
+  const saveAntecedentesBtn = oldSaveAntecedentes.cloneNode(true);
+  oldSaveAntecedentes.replaceWith(saveAntecedentesBtn);
+  saveAntecedentesBtn.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    if(!pacienteGuardadoId){ showToast('Primero guarda los datos generales del paciente'); return; }
+
+    const datos = {
+      app: document.getElementById('app').value,
+      af: document.getElementById('af').value,
+      aqx: document.getElementById('aqx').value,
+      alergias: document.getElementById('alergias').value,
+      no_patologicos: document.getElementById('anp').value,
+      ago_menarca: document.getElementById('agoMenarca').value,
+      ago_formula_gpca: document.getElementById('agoFormula').value,
+      ago_fum: document.getElementById('agoFum').value || null,
+      ago_planificacion: document.getElementById('agoPlanificacion').value,
+    };
+
+    try{
+      await guardarAntecedentes(pacienteGuardadoId, datos);
+      showToast('Antecedentes guardados en la base de datos');
+    } catch(err){
+      console.error(err);
+      showToast('No se pudo guardar — revisa la conexión a Supabase');
+    }
+  });
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2600);
+  }
+
+  cargarEmpresas();
+  inicializarExpediente();
+</script>
+</body>
+</html>
