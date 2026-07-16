@@ -732,7 +732,8 @@
   });
   document.getElementById('newConsulta').addEventListener('click',(e)=>{
     e.stopPropagation();
-    showToast('La ventana de nueva consulta se construye en el Paso 4');
+    if(!window.pacienteGuardadoId){ showToast('Primero guarda los datos generales del paciente'); return; }
+    window.location.href = `./nueva-consulta.html?paciente=${window.pacienteGuardadoId}`;
   });
   document.querySelectorAll('.consulta-item').forEach(item=>{
     item.addEventListener('click',(e)=>{
@@ -813,6 +814,7 @@
     try{
       const paciente = await guardarPaciente(datos);
       pacienteGuardadoId = paciente.id;
+      window.pacienteGuardadoId = paciente.id;
 
       if(empresaId){
         const codigoEmpresa = document.querySelector(`#empresa option[value="${empresaId}"]`).dataset.codigo;
