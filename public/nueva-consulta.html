@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nueva Consulta — Historia Clínica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#e9eaef;
+    --ink:#1c2140;
+    --card-blue-1:#7C93E8;
+    --card-blue-3:#4661C4;
+    --text-light:#F6F7FC;
+    --text-muted:rgba(246,247,252,0.68);
+    --text-faint:rgba(246,247,252,0.42);
+    --accent-green:#7CE8B0;
+    --accent-green-text:#0E3B27;
+    --accent-amber:#F0C674;
+    --accent-amber-text:#4A3A0B;
+    --accent-red:#F0847A;
+    --accent-red-text:#4A1410;
+    --radius:26px;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); font-family:var(--sans); color:var(--ink); padding:24px 14px 90px; }
+  .wrap{ max-width:760px; margin:0 auto; }
+
+  .header-card{
+    border-radius:var(--radius);
+    background:linear-gradient(155deg, var(--card-blue-1), var(--card-blue-3));
+    color:var(--text-light);
+    padding:26px;
+    position:relative; overflow:hidden;
+    margin-bottom:16px;
+  }
+  .header-card::before{ content:""; position:absolute; inset:0; background:radial-gradient(ellipse at 25% -10%, rgba(255,255,255,0.22), transparent 55%); }
+  .eyebrow{ font-family:var(--mono); font-size:12px; color:var(--text-faint); letter-spacing:0.03em; position:relative; }
+  .patient-name{ font-family:var(--mono); font-size:30px; font-weight:700; margin:6px 0 10px; position:relative; }
+  .meta-row{ display:flex; gap:22px; flex-wrap:wrap; position:relative; }
+  .meta-item .v{ font-family:var(--mono); font-size:16px; font-weight:600; }
+  .meta-item .l{ font-family:var(--mono); font-size:10.5px; color:var(--text-faint); text-transform:uppercase; }
+  .fecha-edit{ display:flex; align-items:center; gap:8px; }
+  .fecha-edit input{
+    font-family:var(--mono); font-size:13px; background:rgba(255,255,255,0.14);
+    border:1px solid rgba(255,255,255,0.28); border-radius:10px; color:var(--text-light); padding:6px 8px;
+  }
+  .lock-note{ font-family:var(--mono); font-size:10px; color:var(--text-faint); margin-top:4px; }
+
+  .card{
+    border-radius:var(--radius);
+    background:#fff;
+    border:1px solid #dcdee8;
+    padding:22px;
+    margin-bottom:16px;
+  }
+  .card h3{
+    font-family:var(--mono); font-size:16px; margin:0 0 14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h3 .num{
+    width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
+  }
+
+  textarea.rich{
+    width:100%; min-height:130px; font-family:var(--sans); font-size:14px; line-height:1.6;
+    border:1px solid #dcdee8; border-radius:14px; padding:12px 14px; outline:none; resize:vertical;
+  }
+  textarea.rich:focus{ border-color:#8a93c9; }
+
+  .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .grid.two{ grid-template-columns:repeat(2,1fr); }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  label{ font-family:var(--mono); font-size:10.5px; text-transform:uppercase; color:#7a7f98; letter-spacing:0.03em; }
+  input, select{
+    font-family:var(--mono); font-size:14px; padding:9px 10px; border:1px solid #dcdee8;
+    border-radius:11px; outline:none; color:var(--ink); width:100%;
+  }
+  input:focus, select:focus{ border-color:#8a93c9; }
+  input:read-only{ background:#f5f6fa; color:#5a5f78; }
+
+  .unit-field{ position:relative; }
+  .unit-field input{ padding-right:50px; }
+  .unit-toggle{
+    position:absolute; right:5px; top:28px;
+    font-family:var(--mono); font-size:10.5px; background:#eef0f7; border:none;
+    color:#3a3f5c; padding:4px 8px; border-radius:8px; cursor:pointer;
+  }
+
+  .computed{
+    background:#f5f6fa; border-radius:12px; padding:9px 10px;
+    font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .computed .tag{ display:block; font-size:10px; font-weight:400; color:#7a7f98; margin-top:2px; }
+
+  .alert-box{
+    display:none;
+    font-family:var(--mono); font-size:12px; color:var(--accent-red-text);
+    background:#FBDFDC; border-radius:10px; padding:8px 10px; margin-top:10px;
+  }
+  .alert-box.show{ display:block; }
+
+  .btn{
+    font-family:var(--mono); font-size:13.5px; font-weight:600; padding:11px 18px;
+    border-radius:100px; border:1px solid transparent; cursor:pointer; transition:transform .15s, background .2s;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn.primary{ background:var(--ink); color:#fff; }
+  .btn.primary:hover{ background:#2c3260; }
+  .btn.ghost{ background:#f5f6fa; color:var(--ink); }
+  .btn.ghost:hover{ background:#eceefa; }
+  .btn.green{ background:var(--accent-green); color:var(--accent-green-text); }
+  .btn.full{ width:100%; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+
+  .search-picker{
+    border:1px solid #dcdee8; border-radius:16px; padding:14px; margin-top:6px;
+  }
+  .search-picker input.search{
+    width:100%; font-family:var(--mono); font-size:14px; padding:10px 12px;
+    border:1px solid #dcdee8; border-radius:11px; margin-bottom:10px;
+  }
+  .search-results{ max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+  .search-result-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#f5f6fa; border-radius:10px; padding:8px 12px; cursor:pointer; font-family:var(--mono); font-size:12.5px;
+  }
+  .search-result-item:hover{ background:#eceefa; }
+  .search-result-item .code{ color:#7a7f98; margin-right:8px; }
+  .add-chip{
+    font-family:var(--mono); font-size:10.5px; background:var(--ink); color:#fff;
+    padding:3px 8px; border-radius:100px;
+  }
+  .selected-list{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .selected-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#EEF3FF; border:1px solid #d5e0fb; border-radius:10px; padding:8px 12px;
+    font-family:var(--mono); font-size:12.5px;
+  }
+  .selected-item .remove{ cursor:pointer; color:#A32C1F; font-weight:700; }
+  .data-note{ font-family:var(--mono); font-size:10.5px; color:#7a7f98; margin-top:8px; }
+
+  .cobros-table{ width:100%; border-collapse:collapse; margin-top:10px; font-family:var(--mono); font-size:12px; }
+  .cobros-table th{ text-align:left; color:#7a7f98; font-weight:600; font-size:10.5px; text-transform:uppercase; padding:6px 8px; border-bottom:1px solid #dcdee8; }
+  .cobros-table td{ padding:8px; border-bottom:1px solid #eef0f5; }
+  .filter-row{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; }
+  .filter-chip{
+    font-family:var(--mono); font-size:11px; padding:6px 11px; border-radius:100px;
+    border:1px solid #dcdee8; background:#fff; cursor:pointer; color:#5a5f78;
+  }
+  .filter-chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .calc-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .calc-box{ border:1px solid #dcdee8; border-radius:16px; padding:14px; cursor:pointer; transition:background .2s; }
+  .calc-box:hover{ background:#f9fafc; }
+  .calc-box .t{ font-family:var(--mono); font-size:13px; font-weight:600; }
+  .calc-box .s{ font-family:var(--mono); font-size:11px; color:#7a7f98; margin-top:3px; }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,24,50,0.55); display:none;
+    align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:200; backdrop-filter:blur(2px);
+  }
+  .overlay.show{ display:flex; }
+  .modal{ background:#fff; border-radius:26px; width:100%; max-width:480px; padding:24px; }
+  .modal h3{ font-family:var(--mono); margin:0 0 14px; font-size:18px; }
+  .modal p{ font-family:var(--mono); font-size:13px; color:#3a3f5c; line-height:1.6; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+  .modal-actions .btn{ flex:1; }
+  .result-box{
+    font-family:var(--mono); font-size:13px; background:#f5f6fa; border-radius:12px; padding:12px 14px; margin-top:10px; line-height:1.6;
+  }
+  .result-box.warn{ background:#FCEFD0; }
+  .result-box.danger{ background:#FBDFDC; }
+  .result-box.ok{ background:#DAF7E7; }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; font-family:var(--mono); font-size:13px; padding:12px 20px;
+    border-radius:100px; opacity:0; pointer-events:none; transition:opacity .3s, transform .3s; z-index:300;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:600px){
+    .grid{ grid-template-columns:repeat(2,1fr); }
+    .grid.two, .calc-grid{ grid-template-columns:1fr; }
+    .patient-name{ font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER: paciente + fecha -->
+  <div class="header-card">
+    <div class="eyebrow">Historia Clínica</div>
+    <div class="patient-name">María Elena Rápalo</div>
+    <div class="meta-row">
+      <div class="meta-item"><div class="v">34 años</div><div class="l">Edad</div></div>
+      <div class="meta-item"><div class="v">IBEX-014</div><div class="l">Póliza / expediente</div></div>
+      <div class="meta-item">
+        <div class="fecha-edit">
+          <input type="datetime-local" id="fechaConsulta" readonly>
+          <button class="btn ghost" id="unlockFecha" style="padding:5px 10px;font-size:11px;">Editar (admin)</button>
+        </div>
+        <div class="l">Fecha y hora</div>
+        <div class="lock-note">Solo el administrador puede modificar este valor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. HISTORIA DE LA ENFERMEDAD ACTUAL -->
+  <div class="card">
+    <h3><span class="num">1</span>Historia de la enfermedad actual</h3>
+    <textarea class="rich" id="hea" placeholder="Síntomas referidos por el paciente, evaluación médica, hallazgos al examen físico…"></textarea>
+  </div>
+
+  <!-- 2. SIGNOS VITALES -->
+  <div class="card">
+    <h3><span class="num">2</span>Signos vitales</h3>
+    <div class="grid">
+      <div class="field unit-field">
+        <label>Peso</label>
+        <input type="number" id="peso" placeholder="0.0" step="0.1">
+        <button class="unit-toggle" id="pesoUnit">kg</button>
+      </div>
+      <div class="field unit-field">
+        <label>Talla</label>
+        <input type="number" id="talla" placeholder="0.0" step="0.1">
+        <button class="unit-toggle" id="tallaUnit">cm</button>
+      </div>
+      <div class="field">
+        <label>Perímetro de cintura (cm)</label>
+        <input type="number" id="cintura" placeholder="0">
+      </div>
+
+      <div class="field">
+        <label>Temperatura (°C)</label>
+        <input type="number" id="temp" step="0.1" placeholder="0.0">
+      </div>
+      <div class="field">
+        <label>Presión sistólica</label>
+        <input type="number" id="sbp" placeholder="0">
+      </div>
+      <div class="field">
+        <label>Presión diastólica</label>
+        <input type="number" id="dbp" placeholder="0">
+      </div>
+
+      <div class="field">
+        <label>FC (por minuto)</label>
+        <input type="number" id="fc" placeholder="0">
+      </div>
+      <div class="field">
+        <label>FR (por minuto)</label>
+        <input type="number" id="fr" placeholder="0">
+      </div>
+      <div class="field">
+        <label>StO2 (%)</label>
+        <input type="number" id="sto2" placeholder="0">
+      </div>
+    </div>
+
+    <div class="alert-box" id="cinturaAlert">⚠ Perímetro de cintura fuera del rango normal para el sexo del paciente.</div>
+
+    <div class="divider" style="height:1px;background:#eef0f5;margin:16px 0;"></div>
+
+    <div class="grid">
+      <div class="field"><div class="computed" id="imc">—<span class="tag">IMC</span></div></div>
+      <div class="field"><div class="computed" id="imcClass">—<span class="tag">Clasificación nutricional</span></div></div>
+      <div class="field"><div class="computed" id="pam">—<span class="tag">Presión arterial media</span></div></div>
+      <div class="field"><div class="computed" id="pp">—<span class="tag">Presión de pulso</span></div></div>
+      <div class="field"><div class="computed" id="sc">—<span class="tag">Superficie corporal (m²SC)</span></div></div>
+      <div class="field"><div class="computed" id="liquidos">—<span class="tag">Requerimiento líquidos ml/hr</span></div></div>
+    </div>
+  </div>
+
+  <!-- 3. DIAGNOSTICO -->
+  <div class="card">
+    <h3><span class="num">3</span>Diagnóstico</h3>
+    <div class="search-picker">
+      <input type="text" class="search" id="cie10Search" placeholder="Buscar en CIE-10 por código o nombre…">
+      <div class="search-results" id="cie10Results"></div>
+    </div>
+    <div class="selected-list" id="diagnosticosSeleccionados"></div>
+    <textarea class="rich" id="notasDiagnostico" placeholder="Notas adicionales del diagnóstico…" style="min-height:70px;margin-top:10px;"></textarea>
+    <div class="btn-row">
+      <label class="btn ghost" for="cie10File" style="cursor:pointer;">Subir catálogo CIE-10 / CIE-11 (.csv o .xlsx)</label>
+      <input type="file" id="cie10File" accept=".csv,.xlsx,.xls" style="display:none;">
+    </div>
+    <div class="data-note" id="cie10Note">Catálogo de muestra (12 códigos). El archivo debe tener una columna de código y una de nombre/descripción — detectamos las columnas automáticamente.</div>
+  </div>
+
+  <!-- 4. TRATAMIENTO -->
+  <div class="card">
+    <h3><span class="num">4</span>Tratamiento</h3>
+    <div class="search-picker">
+      <input type="text" class="search" id="medSearch" placeholder="Buscar medicamento…">
+      <div class="search-results" id="medResults"></div>
+    </div>
+    <div class="selected-list" id="medicamentosSeleccionados"></div>
+    <div class="btn-row">
+      <label class="btn ghost" for="medFile" style="cursor:pointer;">Subir base de medicamentos (.csv o .xlsx)</label>
+      <input type="file" id="medFile" accept=".csv,.xlsx,.xls" style="display:none;">
+    </div>
+    <div class="data-note" id="medNote">Base de muestra (10 medicamentos). Sube tu archivo de +11,000 medicamentos — detectamos la columna de nombre automáticamente.</div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnImprimirReceta">Imprimir receta</button>
+    </div>
+  </div>
+
+  <!-- 5. LABORATORIO -->
+  <div class="card">
+    <h3><span class="num">5</span>Laboratorio</h3>
+    <div class="search-picker">
+      <input type="text" class="search" id="labSearch" placeholder="Buscar estudio de laboratorio…">
+      <div class="search-results" id="labResults"></div>
+    </div>
+    <div class="selected-list" id="labSeleccionados"></div>
+  </div>
+
+  <!-- 6. INCAPACIDAD Y CONSTANCIA -->
+  <div class="card">
+    <h3><span class="num">6</span>Incapacidad / constancia médica</h3>
+    <div class="grid two">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="incapDesde">
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="incapHasta">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnConstancia">Imprimir constancia médica</button>
+    </div>
+  </div>
+
+  <!-- 7. AGENDAR CITA -->
+  <div class="card">
+    <h3><span class="num">7</span>Agendar próxima cita</h3>
+    <div class="grid two">
+      <div class="field">
+        <label>Fecha y hora de la cita</label>
+        <input type="datetime-local" id="citaFecha">
+      </div>
+      <div class="field">
+        <label>Motivo</label>
+        <input type="text" id="citaMotivo" placeholder="Ej. Control de presión arterial">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnAgendar">Agendar cita</button>
+    </div>
+  </div>
+
+  <!-- 8. COBRAR -->
+  <div class="card">
+    <h3><span class="num">8</span>Cobros</h3>
+    <div class="btn-row">
+      <button class="btn green" id="btnCobrar">+ Registrar cobro</button>
+    </div>
+    <div class="filter-row">
+      <div class="filter-chip active" data-f="todos">Todos</div>
+      <div class="filter-chip" data-f="hoy">Hoy</div>
+      <div class="filter-chip" data-f="semana">Esta semana</div>
+      <div class="filter-chip" data-f="mes">Este mes</div>
+      <div class="filter-chip" data-f="pagada">Pagadas</div>
+      <div class="filter-chip" data-f="morosa">Morosas</div>
+    </div>
+    <table class="cobros-table">
+      <thead><tr><th>Tipo</th><th>Valor</th><th>Pago</th><th>Fecha</th><th>Estado</th></tr></thead>
+      <tbody id="cobrosBody"></tbody>
+    </table>
+  </div>
+
+  <!-- 9. CALCULADORAS -->
+  <div class="card">
+    <h3><span class="num">9</span>Calculadoras clínicas</h3>
+    <div class="calc-grid">
+      <div class="calc-box" id="calcDiabetes">
+        <div class="t">Diabetes / HOMA-IR</div>
+        <div class="s">Glucosa, HbA1c, insulina</div>
+      </div>
+      <div class="calc-box" id="calcTiroides">
+        <div class="t">Función tiroidea</div>
+        <div class="s">TSH, T4 libre</div>
+      </div>
+      <div class="calc-box" id="calcPresion">
+        <div class="t">Clasificación de presión arterial</div>
+        <div class="s">Según guía ACC/AHA</div>
+      </div>
+      <div class="calc-box" id="calcTFG">
+        <div class="t">Tasa de filtración glomerular</div>
+        <div class="s">Cockcroft-Gault (estimada)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:6px;">
+    <button class="btn primary full" id="btnGuardarConsulta">Guardar y cerrar consulta</button>
+  </div>
+
+</div>
+
+<!-- MODAL: cobrar -->
+<div class="overlay" id="overlayCobro">
+  <div class="modal">
+    <h3>Registrar cobro</h3>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Tipo de cobro</label>
+      <select id="cobroTipo">
+        <option value="Consulta" data-precio="500">Consulta — L. 500</option>
+        <option value="Receta controlada" data-precio="150">Receta controlada — L. 150</option>
+        <option value="Inyección IV" data-precio="120">Inyección intravenosa — L. 120</option>
+        <option value="Inyección IM" data-precio="80">Inyección intramuscular — L. 80</option>
+        <option value="Constancia médica" data-precio="200">Constancia médica — L. 200</option>
+        <option value="otro" data-precio="0">Otro (definir valor)</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Valor (L.)</label>
+      <input type="number" id="cobroValor">
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Forma de pago</label>
+      <select id="cobroFormaPago">
+        <option value="Efectivo">Efectivo</option>
+        <option value="Transferencia">Transferencia</option>
+        <option value="Tarjeta de crédito">Tarjeta de crédito</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Estado</label>
+      <select id="cobroEstado">
+        <option value="pagada">Pagada</option>
+        <option value="morosa">Morosa</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelCobro">Cancelar</button>
+      <button class="btn primary" id="guardarCobro">Guardar cobro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: agendar confirm -->
+<div class="overlay" id="overlayAgendar">
+  <div class="modal">
+    <h3>Confirmar cita</h3>
+    <p id="agendarPregunta">¿Quieres agendar la cita médica?</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="agendarNo">No</button>
+      <button class="btn primary" id="agendarSi">Sí, agendar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: calculadoras -->
+<div class="overlay" id="overlayCalc">
+  <div class="modal">
+    <h3 id="calcTitle">Calculadora</h3>
+    <div id="calcBody"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="calcClose" style="flex:1;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Guardado</div>
+
+<script>
+  // ================= SIGNOS VITALES =================
+  const SEXO_PACIENTE = 'F'; // en producción esto viene del expediente (Paso 1)
+
+  const pesoInput = document.getElementById('peso');
+  const tallaInput = document.getElementById('talla');
+  const pesoUnitBtn = document.getElementById('pesoUnit');
+  const tallaUnitBtn = document.getElementById('tallaUnit');
+  let pesoUnidad = 'kg', tallaUnidad = 'cm';
+
+  pesoUnitBtn.addEventListener('click', ()=>{
+    const val = parseFloat(pesoInput.value);
+    if(!isNaN(val)){
+      pesoInput.value = pesoUnidad==='kg' ? (val/0.453592).toFixed(1) : (val*0.453592).toFixed(1);
+    }
+    pesoUnidad = pesoUnidad==='kg' ? 'lb' : 'kg';
+    pesoUnitBtn.textContent = pesoUnidad;
+    calcularSignos();
+  });
+  tallaUnitBtn.addEventListener('click', ()=>{
+    const val = parseFloat(tallaInput.value);
+    if(!isNaN(val)){
+      tallaInput.value = tallaUnidad==='cm' ? (val/100).toFixed(2) : (val*100).toFixed(0);
+    }
+    tallaUnidad = tallaUnidad==='cm' ? 'm' : 'cm';
+    tallaUnitBtn.textContent = tallaUnidad;
+    calcularSignos();
+  });
+
+  function pesoEnKg(){
+    const v = parseFloat(pesoInput.value); if(isNaN(v)) return null;
+    return pesoUnidad==='kg' ? v : v*0.453592;
+  }
+  function tallaEnM(){
+    const v = parseFloat(tallaInput.value); if(isNaN(v)) return null;
+    return tallaUnidad==='cm' ? v/100 : v;
+  }
+  function clasificacionIMC(imc){
+    if(imc < 18.5) return 'Bajo peso';
+    if(imc < 25) return 'Normal';
+    if(imc < 30) return 'Sobrepeso';
+    if(imc < 35) return 'Obesidad grado I';
+    if(imc < 40) return 'Obesidad grado II';
+    return 'Obesidad grado III';
+  }
+
+  function calcularSignos(){
+    const kg = pesoEnKg(), m = tallaEnM();
+    if(kg && m){
+      const imc = kg/(m*m);
+      document.getElementById('imc').innerHTML = imc.toFixed(1)+'<span class="tag">IMC</span>';
+      document.getElementById('imcClass').innerHTML = clasificacionIMC(imc)+'<span class="tag">Clasificación nutricional</span>';
+      const sc = Math.sqrt((m*100*kg)/3600);
+      document.getElementById('sc').innerHTML = sc.toFixed(2)+' m²<span class="tag">Superficie corporal (m²SC)</span>';
+      let liqDia;
+      if(kg<=10) liqDia = kg*100;
+      else if(kg<=20) liqDia = 1000 + (kg-10)*50;
+      else liqDia = 1500 + (kg-20)*20;
+      document.getElementById('liquidos').innerHTML = Math.round(liqDia/24)+' ml/hr<span class="tag">Requerimiento líquidos ml/hr</span>';
+    }
+    const sbp = parseFloat(document.getElementById('sbp').value);
+    const dbp = parseFloat(document.getElementById('dbp').value);
+    if(!isNaN(sbp) && !isNaN(dbp)){
+      const pam = dbp + (sbp-dbp)/3;
+      document.getElementById('pam').innerHTML = pam.toFixed(0)+' mmHg<span class="tag">Presión arterial media</span>';
+      document.getElementById('pp').innerHTML = (sbp-dbp).toFixed(0)+' mmHg<span class="tag">Presión de pulso</span>';
+    }
+    const cintura = parseFloat(document.getElementById('cintura').value);
+    const alertBox = document.getElementById('cinturaAlert');
+    if(!isNaN(cintura)){
+      const limite = SEXO_PACIENTE==='F' ? 88 : 102;
+      alertBox.classList.toggle('show', cintura > limite);
+    } else {
+      alertBox.classList.remove('show');
+    }
+  }
+  ['peso','talla','sbp','dbp','cintura'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', calcularSignos);
+  });
+
+  // ================= FECHA CONSULTA =================
+  const fechaInput = document.getElementById('fechaConsulta');
+  const now = new Date();
+  fechaInput.value = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('unlockFecha').addEventListener('click', ()=>{
+    fechaInput.readOnly = !fechaInput.readOnly;
+    showToast(fechaInput.readOnly ? 'Fecha bloqueada de nuevo' : 'Modo administrador: puedes editar la fecha');
+  });
+
+  // ================= CIE-10 (muestra) =================
+  const CIE10 = [
+    {code:'J00', name:'Rinofaringitis aguda (resfriado común)'},
+    {code:'J06.9', name:'Infección aguda de vías respiratorias superiores, no especificada'},
+    {code:'A09', name:'Diarrea y gastroenteritis de presunto origen infeccioso'},
+    {code:'I10', name:'Hipertensión esencial (primaria)'},
+    {code:'E11', name:'Diabetes mellitus tipo 2'},
+    {code:'E03.9', name:'Hipotiroidismo, no especificado'},
+    {code:'M54.5', name:'Lumbago no especificado'},
+    {code:'R51', name:'Cefalea'},
+    {code:'N39.0', name:'Infección de vías urinarias, sitio no especificado'},
+    {code:'K29.7', name:'Gastritis, no especificada'},
+    {code:'J45.9', name:'Asma, no especificada'},
+    {code:'Z00.0', name:'Examen médico general'}
+  ];
+  function leerArchivoTabla(file, onRows){
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      onRows(rows);
+    };
+    reader.readAsBinaryString(file);
+  }
+  function detectarColumna(row, candidatos){
+    const keys = Object.keys(row);
+    for(const cand of candidatos){
+      const match = keys.find(k=> k.toLowerCase().trim() === cand);
+      if(match) return match;
+    }
+    for(const cand of candidatos){
+      const match = keys.find(k=> k.toLowerCase().includes(cand));
+      if(match) return match;
+    }
+    return keys[0];
+  }
+
+  document.getElementById('cie10File').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    leerArchivoTabla(file, rows=>{
+      if(!rows.length){ showToast('El archivo está vacío'); return; }
+      const codeCol = detectarColumna(rows[0], ['codigo','código','code','cie']);
+      const nameCol = detectarColumna(rows[0], ['nombre','descripcion','descripción','diagnostico','diagnóstico','name']);
+      CIE10.length = 0;
+      rows.forEach(r=>{ if(r[codeCol]) CIE10.push({code:String(r[codeCol]).trim(), name:String(r[nameCol]||'').trim()}); });
+      document.getElementById('cie10Note').textContent = `Catálogo importado: ${CIE10.length} códigos cargados desde "${file.name}".`;
+      showToast(`CIE-10 importado: ${CIE10.length} códigos`);
+    });
+  });
+
+  document.getElementById('medFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    leerArchivoTabla(file, rows=>{
+      if(!rows.length){ showToast('El archivo está vacío'); return; }
+      const nameCol = detectarColumna(rows[0], ['nombre','medicamento','producto','name','descripcion','descripción']);
+      MEDICAMENTOS.length = 0;
+      rows.forEach(r=>{ if(r[nameCol]) MEDICAMENTOS.push({name:String(r[nameCol]).trim()}); });
+      document.getElementById('medNote').textContent = `Base importada: ${MEDICAMENTOS.length} medicamentos cargados desde "${file.name}".`;
+      showToast(`Medicamentos importados: ${MEDICAMENTOS.length}`);
+    });
+  });
+
+  const diagnosticosSel = [];
+  setupPicker('cie10Search','cie10Results', CIE10, item=>`${item.code} — ${item.name}`, item=>{
+    if(diagnosticosSel.find(d=>d.code===item.code)) return;
+    diagnosticosSel.push(item);
+    renderSelected('diagnosticosSeleccionados', diagnosticosSel, d=>`${d.code} — ${d.name}`, d=>d.code);
+  });
+  renderSelected('diagnosticosSeleccionados', diagnosticosSel, d=>`${d.code} — ${d.name}`, d=>d.code);
+
+  // ================= MEDICAMENTOS (muestra) =================
+  const MEDICAMENTOS = [
+    {name:'Acetaminofén 500mg tab'}, {name:'Ibuprofeno 400mg tab'}, {name:'Amoxicilina 500mg cap'},
+    {name:'Loratadina 10mg tab'}, {name:'Omeprazol 20mg cap'}, {name:'Metformina 850mg tab'},
+    {name:'Losartán 50mg tab'}, {name:'Azitromicina 500mg tab'}, {name:'Dexametasona 4mg amp'},
+    {name:'Salbutamol inhalador'}
+  ];
+  const medsSel = [];
+  setupPicker('medSearch','medResults', MEDICAMENTOS, item=>item.name, item=>{
+    if(medsSel.find(m=>m.name===item.name)) return;
+    medsSel.push(item);
+    renderSelected('medicamentosSeleccionados', medsSel, m=>m.name, m=>m.name);
+  });
+  renderSelected('medicamentosSeleccionados', medsSel, m=>m.name, m=>m.name);
+
+  // ================= LABORATORIO (muestra) =================
+  const LAB = [
+    {name:'Hemograma completo'}, {name:'Glucosa en ayunas'}, {name:'Perfil lipídico'},
+    {name:'Examen general de orina'}, {name:'Creatinina'}, {name:'TSH'}, {name:'Prueba de embarazo'}
+  ];
+  const labSel = [];
+  setupPicker('labSearch','labResults', LAB, item=>item.name, item=>{
+    if(labSel.find(l=>l.name===item.name)) return;
+    labSel.push(item);
+    renderSelected('labSeleccionados', labSel, l=>l.name, l=>l.name);
+  });
+  renderSelected('labSeleccionados', labSel, l=>l.name, l=>l.name);
+
+  function setupPicker(searchId, resultsId, dataset, labelFn, onAdd){
+    const searchEl = document.getElementById(searchId);
+    const resultsEl = document.getElementById(resultsId);
+    searchEl.addEventListener('input', ()=>{
+      const q = searchEl.value.trim().toLowerCase();
+      resultsEl.innerHTML = '';
+      if(!q) return;
+      dataset.filter(d=> labelFn(d).toLowerCase().includes(q)).slice(0,8).forEach(item=>{
+        const row = document.createElement('div');
+        row.className = 'search-result-item';
+        row.innerHTML = `<span>${labelFn(item)}</span><span class="add-chip">agregar</span>`;
+        row.addEventListener('click', ()=>{ onAdd(item); searchEl.value=''; resultsEl.innerHTML=''; });
+        resultsEl.appendChild(row);
+      });
+    });
+  }
+  function renderSelected(containerId, list, labelFn, keyFn){
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    list.forEach(item=>{
+      const row = document.createElement('div');
+      row.className = 'selected-item';
+      row.innerHTML = `<span>${labelFn(item)}</span><span class="remove">✕</span>`;
+      row.querySelector('.remove').addEventListener('click', ()=>{
+        const idx = list.findIndex(i=>keyFn(i)===keyFn(item));
+        list.splice(idx,1);
+        renderSelected(containerId, list, labelFn, keyFn);
+      });
+      el.appendChild(row);
+    });
+  }
+
+  // ================= IMPRIMIR (placeholders por ahora) =================
+  document.getElementById('btnImprimirReceta').addEventListener('click', ()=> showToast('La plantilla de receta imprimible la diseñamos en el siguiente paso'));
+  document.getElementById('btnConstancia').addEventListener('click', ()=> showToast('La plantilla de constancia médica la diseñamos en el siguiente paso'));
+
+  // ================= AGENDAR CITA =================
+  const overlayAgendar = document.getElementById('overlayAgendar');
+  document.getElementById('btnAgendar').addEventListener('click', ()=>{
+    const fecha = document.getElementById('citaFecha').value;
+    const motivo = document.getElementById('citaMotivo').value || 'consulta de seguimiento';
+    if(!fecha){ showToast('Selecciona la fecha de la cita'); return; }
+    const fechaLegible = new Date(fecha).toLocaleString('es-HN', {dateStyle:'long', timeStyle:'short'});
+    document.getElementById('agendarPregunta').textContent = `¿Quieres agendar la cita médica de María Elena Rápalo el ${fechaLegible}, motivo: ${motivo}?`;
+    overlayAgendar.classList.add('show');
+  });
+  document.getElementById('agendarNo').addEventListener('click', ()=>{
+    overlayAgendar.classList.remove('show');
+    showToast('No se generó tu cita médica');
+  });
+  document.getElementById('agendarSi').addEventListener('click', ()=>{
+    overlayAgendar.classList.remove('show');
+    showToast('Se generó tu cita médica');
+    // Nota: la integración real con Calendario/Recordatorios de iOS/iPadOS/macOS
+    // se conecta aquí una vez definamos cómo la app se comunica con esos sistemas.
+  });
+
+  // ================= COBROS =================
+  let cobros = [];
+  const overlayCobro = document.getElementById('overlayCobro');
+  document.getElementById('btnCobrar').addEventListener('click', ()=> overlayCobro.classList.add('show'));
+  document.getElementById('cancelCobro').addEventListener('click', ()=> overlayCobro.classList.remove('show'));
+  overlayCobro.addEventListener('click', (e)=>{ if(e.target===overlayCobro) overlayCobro.classList.remove('show'); });
+  document.getElementById('cobroTipo').addEventListener('change', (e)=>{
+    const precio = e.target.selectedOptions[0].dataset.precio;
+    document.getElementById('cobroValor').value = precio;
+  });
+  document.getElementById('cobroValor').value = 500;
+
+  document.getElementById('guardarCobro').addEventListener('click', ()=>{
+    const tipo = document.getElementById('cobroTipo').value;
+    const valor = Number(document.getElementById('cobroValor').value)||0;
+    const estado = document.getElementById('cobroEstado').value;
+    const formaPago = document.getElementById('cobroFormaPago').value;
+    cobros.push({ tipo, valor, estado, formaPago, fecha:new Date() });
+    renderCobros();
+    overlayCobro.classList.remove('show');
+    showToast('Cobro registrado');
+  });
+
+  let filtroCobro = 'todos';
+  document.querySelectorAll('#cobrosTableFilters .filter-chip').forEach(()=>{}); // no-op guard
+  document.querySelectorAll('.card .filter-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('.card .filter-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      filtroCobro = chip.dataset.f;
+      renderCobros();
+    });
+  });
+
+  function renderCobros(){
+    const body = document.getElementById('cobrosBody');
+    const now = new Date();
+    let list = [...cobros];
+    if(filtroCobro==='hoy') list = list.filter(c=> c.fecha.toDateString()===now.toDateString());
+    if(filtroCobro==='semana'){
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate()-7);
+      list = list.filter(c=> c.fecha >= weekAgo);
+    }
+    if(filtroCobro==='mes') list = list.filter(c=> c.fecha.getMonth()===now.getMonth() && c.fecha.getFullYear()===now.getFullYear());
+    if(filtroCobro==='pagada') list = list.filter(c=> c.estado==='pagada');
+    if(filtroCobro==='morosa') list = list.filter(c=> c.estado==='morosa');
+
+    body.innerHTML = list.length ? '' : `<tr><td colspan="4" style="text-align:center;color:#7a7f98;padding:16px;">Sin cobros registrados</td></tr>`;
+    list.forEach(c=>{
+      const tr = document.createElement('tr');
+      const pillColor = c.estado==='pagada' ? '#0E7A48' : '#A32C1F';
+      const pillBg = c.estado==='pagada' ? '#DAF7E7' : '#FBDFDC';
+      tr.innerHTML = `<td>${c.tipo}</td><td>L. ${c.valor}</td><td>${c.formaPago||'—'}</td><td>${c.fecha.toLocaleString('es-HN',{dateStyle:'short',timeStyle:'short'})}</td>
+        <td><span style="background:${pillBg};color:${pillColor};padding:3px 9px;border-radius:100px;font-size:11px;">${c.estado}</span></td>`;
+      body.appendChild(tr);
+    });
+  }
+  renderCobros();
+
+  // ================= CALCULADORAS =================
+  const overlayCalc = document.getElementById('overlayCalc');
+  const calcTitle = document.getElementById('calcTitle');
+  const calcBody = document.getElementById('calcBody');
+  document.getElementById('calcClose').addEventListener('click', ()=> overlayCalc.classList.remove('show'));
+  overlayCalc.addEventListener('click', (e)=>{ if(e.target===overlayCalc) overlayCalc.classList.remove('show'); });
+
+  document.getElementById('calcDiabetes').addEventListener('click', ()=>{
+    calcTitle.textContent = 'Diabetes / HOMA-IR';
+    calcBody.innerHTML = `
+      <div class="field" style="margin-bottom:10px;"><label>Glucosa en ayunas (mg/dL)</label><input type="number" id="cGlucosa"></div>
+      <div class="field" style="margin-bottom:10px;"><label>HbA1c (%)</label><input type="number" id="cHba1c" step="0.1"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Insulina en ayunas (µU/mL)</label><input type="number" id="cInsulina"></div>
+      <button class="btn primary full" id="calcDiabetesRun">Calcular</button>
+      <div id="calcDiabetesResult"></div>
+    `;
+    overlayCalc.classList.add('show');
+    document.getElementById('calcDiabetesRun').addEventListener('click', ()=>{
+      const g = parseFloat(document.getElementById('cGlucosa').value);
+      const a1c = parseFloat(document.getElementById('cHba1c').value);
+      const ins = parseFloat(document.getElementById('cInsulina').value);
+      let out = [];
+      if(!isNaN(g)){
+        let cls = g<100 ? 'Glucosa normal' : g<126 ? 'Glucosa alterada en ayunas (prediabetes)' : 'Rango de diabetes';
+        out.push(`Glucosa: ${g} mg/dL — ${cls}`);
+      }
+      if(!isNaN(a1c)){
+        let cls = a1c<5.7 ? 'Normal' : a1c<6.5 ? 'Prediabetes' : 'Rango de diabetes';
+        out.push(`HbA1c: ${a1c}% — ${cls}`);
+      }
+      let homaTxt = '';
+      if(!isNaN(g) && !isNaN(ins)){
+        const homa = (g*ins)/405;
+        homaTxt = `HOMA-IR: ${homa.toFixed(2)} — ${homa>2.5 ? 'sugiere resistencia a la insulina' : 'dentro de rango habitual'}`;
+        out.push(homaTxt);
+      }
+      const resultDiv = document.getElementById('calcDiabetesResult');
+      resultDiv.innerHTML = `<div class="result-box">${out.join('<br>') || 'Ingresa al menos un valor'}<br><br><span style="font-size:10.5px;color:#7a7f98;">Valores de referencia orientativos — confirma según tu criterio clínico.</span></div>`;
+    });
+  });
+
+  document.getElementById('calcTiroides').addEventListener('click', ()=>{
+    calcTitle.textContent = 'Función tiroidea';
+    calcBody.innerHTML = `
+      <div class="field" style="margin-bottom:10px;"><label>TSH (µUI/mL)</label><input type="number" id="cTsh" step="0.01"></div>
+      <div class="field" style="margin-bottom:10px;"><label>T4 libre (ng/dL)</label><input type="number" id="cT4" step="0.01"></div>
+      <button class="btn primary full" id="calcTiroidesRun">Calcular</button>
+      <div id="calcTiroidesResult"></div>
+    `;
+    overlayCalc.classList.add('show');
+    document.getElementById('calcTiroidesRun').addEventListener('click', ()=>{
+      const tsh = parseFloat(document.getElementById('cTsh').value);
+      const t4 = parseFloat(document.getElementById('cT4').value);
+      let msg = 'Ingresa TSH y T4 libre';
+      if(!isNaN(tsh) && !isNaN(t4)){
+        const tshAlta = tsh>4.0, tshBaja = tsh<0.4;
+        const t4Alta = t4>1.8, t4Baja = t4<0.8;
+        if(tshAlta && t4Baja) msg = 'Patrón compatible con hipotiroidismo primario';
+        else if(tshBaja && t4Alta) msg = 'Patrón compatible con hipertiroidismo primario';
+        else if(tshAlta && !t4Baja) msg = 'Patrón compatible con hipotiroidismo subclínico';
+        else if(tshBaja && !t4Alta) msg = 'Patrón compatible con hipertiroidismo subclínico';
+        else msg = 'Perfil tiroideo dentro de rango habitual';
+      }
+      document.getElementById('calcTiroidesResult').innerHTML = `<div class="result-box">${msg}<br><br><span style="font-size:10.5px;color:#7a7f98;">Interpretación orientativa — valida contra el rango de referencia de tu laboratorio.</span></div>`;
+    });
+  });
+
+  document.getElementById('calcPresion').addEventListener('click', ()=>{
+    calcTitle.textContent = 'Clasificación de presión arterial';
+    calcBody.innerHTML = `
+      <div class="field" style="margin-bottom:10px;"><label>Sistólica</label><input type="number" id="cSbp"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Diastólica</label><input type="number" id="cDbp"></div>
+      <button class="btn primary full" id="calcPresionRun">Calcular</button>
+      <div id="calcPresionResult"></div>
+    `;
+    overlayCalc.classList.add('show');
+    document.getElementById('calcPresionRun').addEventListener('click', ()=>{
+      const s = parseFloat(document.getElementById('cSbp').value);
+      const d = parseFloat(document.getElementById('cDbp').value);
+      let cls = '—', cssClass='';
+      if(!isNaN(s) && !isNaN(d)){
+        if(s>=180 || d>=120){ cls='Crisis hipertensiva — requiere atención inmediata'; cssClass='danger'; }
+        else if(s>=140 || d>=90){ cls='Hipertensión etapa 2'; cssClass='warn'; }
+        else if(s>=130 || d>=80){ cls='Hipertensión etapa 1'; cssClass='warn'; }
+        else if(s>=120 && d<80){ cls='Presión elevada'; cssClass='warn'; }
+        else { cls='Normal'; cssClass='ok'; }
+      }
+      document.getElementById('calcPresionResult').innerHTML = `<div class="result-box ${cssClass}">${cls}</div>`;
+    });
+  });
+
+  document.getElementById('calcTFG').addEventListener('click', ()=>{
+    calcTitle.textContent = 'Tasa de filtración glomerular (Cockcroft-Gault)';
+    calcBody.innerHTML = `
+      <div class="field" style="margin-bottom:10px;"><label>Edad (años)</label><input type="number" id="cEdad"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Peso (kg)</label><input type="number" id="cPeso"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Creatinina sérica (mg/dL)</label><input type="number" id="cCrea" step="0.01"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Sexo</label>
+        <select id="cSexoTfg"><option value="M">Masculino</option><option value="F">Femenino</option></select>
+      </div>
+      <button class="btn primary full" id="calcTFGRun">Calcular</button>
+      <div id="calcTFGResult"></div>
+    `;
+    overlayCalc.classList.add('show');
+    document.getElementById('calcTFGRun').addEventListener('click', ()=>{
+      const edad = parseFloat(document.getElementById('cEdad').value);
+      const peso = parseFloat(document.getElementById('cPeso').value);
+      const crea = parseFloat(document.getElementById('cCrea').value);
+      const sexo = document.getElementById('cSexoTfg').value;
+      let msg = 'Completa todos los valores';
+      if(!isNaN(edad) && !isNaN(peso) && !isNaN(crea) && crea>0){
+        let crcl = ((140-edad)*peso)/(72*crea);
+        if(sexo==='F') crcl *= 0.85;
+        let etapa = crcl>=90 ? 'función renal normal' : crcl>=60 ? 'levemente disminuida' : crcl>=30 ? 'moderadamente disminuida' : crcl>=15 ? 'severamente disminuida' : 'falla renal';
+        msg = `Clearance de creatinina estimado: ${crcl.toFixed(1)} mL/min — ${etapa}`;
+      }
+      document.getElementById('calcTFGResult').innerHTML = `<div class="result-box">${msg}<br><br><span style="font-size:10.5px;color:#7a7f98;">Fórmula estimada — no sustituye CKD-EPI con creatinina de laboratorio certificado.</span></div>`;
+    });
+  });
+
+  // ================= GUARDAR CONSULTA =================
+  document.getElementById('btnGuardarConsulta').addEventListener('click', ()=>{
+    showToast('Consulta guardada — este registro queda bloqueado para todos excepto el administrador');
+  });
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 2600);
+  }
+
+  calcularSignos();
+</script>
+
+<script type="module">
+  import { obtenerPaciente, crearConsulta, guardarDiagnosticosConsulta, guardarMedicamentosConsulta,
+           guardarLaboratorioConsulta, registrarCobro, crearCita, buscarCie, buscarMedicamentos,
+           importarCatalogoCie, importarCatalogoMedicamentos } from './api-supabase.js';
+
+  const params = new URLSearchParams(window.location.search);
+  const pacienteId = params.get('paciente');
+  let pacienteActual = null;
+
+  async function cargarPaciente(){
+    if(!pacienteId){
+      showToast('Abre esta pantalla desde el expediente de un paciente para guardar de verdad');
+      return;
+    }
+    try{
+      pacienteActual = await obtenerPaciente(pacienteId);
+      document.querySelector('.patient-name').textContent = pacienteActual.nombre_completo || 'Paciente';
+      document.querySelector('.meta-item .v').textContent = pacienteActual.edad_manual || '—';
+    } catch(err){
+      console.error(err);
+      showToast('No se pudo cargar el paciente — revisa el enlace');
+    }
+  }
+
+  // ---------- Guardar consulta completa ----------
+  const oldGuardarConsulta = document.getElementById('btnGuardarConsulta');
+  const nuevoGuardarConsulta = oldGuardarConsulta.cloneNode(true);
+  oldGuardarConsulta.replaceWith(nuevoGuardarConsulta);
+  nuevoGuardarConsulta.addEventListener('click', async ()=>{
+    if(!pacienteActual){ showToast('No hay paciente cargado — abre esta pantalla desde el expediente'); return; }
+    const datos = {
+      paciente_id: pacienteActual.id,
+      historia_enfermedad_actual: document.getElementById('hea').value,
+      peso_kg: parseFloat(document.getElementById('peso').value) || null,
+      talla_m: parseFloat(document.getElementById('talla').value) || null,
+      perimetro_cintura_cm: parseFloat(document.getElementById('cintura').value) || null,
+      temperatura_c: parseFloat(document.getElementById('temp').value) || null,
+      presion_sistolica: parseInt(document.getElementById('sbp').value) || null,
+      presion_diastolica: parseInt(document.getElementById('dbp').value) || null,
+      frecuencia_cardiaca: parseInt(document.getElementById('fc').value) || null,
+      frecuencia_respiratoria: parseInt(document.getElementById('fr').value) || null,
+      sto2_pct: parseInt(document.getElementById('sto2').value) || null,
+      notas_diagnostico: document.getElementById('notasDiagnostico').value,
+      incapacidad_desde: document.getElementById('incapDesde').value || null,
+      incapacidad_hasta: document.getElementById('incapHasta').value || null,
+    };
+    try{
+      const consulta = await crearConsulta(datos);
+      if(diagnosticosSel.length) await guardarDiagnosticosConsulta(consulta.id, diagnosticosSel.map(d=>d.code));
+      if(medsSel.length) await guardarMedicamentosConsulta(consulta.id, medsSel);
+      showToast('Consulta guardada en la base de datos');
+    } catch(err){
+      console.error(err);
+      showToast('No se pudo guardar la consulta — revisa RLS de "consultas"');
+    }
+  });
+
+  // ---------- Cobro real ----------
+  const oldGuardarCobro = document.getElementById('guardarCobro');
+  const nuevoGuardarCobro = oldGuardarCobro.cloneNode(true);
+  oldGuardarCobro.replaceWith(nuevoGuardarCobro);
+  nuevoGuardarCobro.addEventListener('click', async ()=>{
+    if(!pacienteActual){ showToast('No hay paciente cargado'); return; }
+    const tipo = document.getElementById('cobroTipo').value;
+    const valor = Number(document.getElementById('cobroValor').value)||0;
+    const estado = document.getElementById('cobroEstado').value;
+    const formaPago = document.getElementById('cobroFormaPago').value;
+    try{
+      await registrarCobro({ paciente_id:pacienteActual.id, tipo_cobro:tipo, valor, forma_pago:formaPago, estado });
+      cobros.push({ tipo, valor, estado, formaPago, fecha:new Date() });
+      renderCobros();
+      overlayCobro.classList.remove('show');
+      showToast('Cobro guardado en la base de datos');
+    } catch(err){
+      console.error(err);
+      showToast('No se pudo registrar — revisa RLS de "cobros"');
+    }
+  });
+
+  // ---------- Agendar cita real ----------
+  const oldAgendarSi = document.getElementById('agendarSi');
+  const nuevoAgendarSi = oldAgendarSi.cloneNode(true);
+  oldAgendarSi.replaceWith(nuevoAgendarSi);
+  nuevoAgendarSi.addEventListener('click', async ()=>{
+    overlayAgendar.classList.remove('show');
+    if(!pacienteActual){ showToast('No se generó tu cita médica — falta el paciente'); return; }
+    const fecha = document.getElementById('citaFecha').value;
+    const motivo = document.getElementById('citaMotivo').value || 'consulta de seguimiento';
+    try{
+      await crearCita({ paciente_id:pacienteActual.id, fecha_hora:fecha, motivo });
+      showToast('Se generó tu cita médica');
+    } catch(err){
+      console.error(err);
+      showToast('No se generó tu cita médica — revisa RLS de "citas"');
+    }
+  });
+
+  // ---------- Búsqueda real en catálogos (con respaldo local si no hay resultados) ----------
+  document.getElementById('cie10Search').addEventListener('input', async (e)=>{
+    const q = e.target.value.trim();
+    if(q.length < 2) return;
+    try{
+      const resultados = await buscarCie(q);
+      if(resultados.length){
+        const resultsEl = document.getElementById('cie10Results');
+        resultsEl.innerHTML = '';
+        resultados.forEach(item=>{
+          const row = document.createElement('div');
+          row.className = 'search-result-item';
+          row.innerHTML = `<span>${item.codigo} — ${item.nombre}</span><span class="add-chip">agregar</span>`;
+          row.addEventListener('click', ()=>{
+            if(!diagnosticosSel.find(d=>d.code===item.codigo)){
+              diagnosticosSel.push({code:item.codigo, name:item.nombre});
+              renderSelected('diagnosticosSeleccionados', diagnosticosSel, d=>`${d.code} — ${d.name}`, d=>d.code);
+            }
+            e.target.value=''; resultsEl.innerHTML='';
+          });
+          resultsEl.appendChild(row);
+        });
+      }
+    } catch(err){ /* si falla, se queda con el catálogo de muestra local */ }
+  });
+
+  document.getElementById('medSearch').addEventListener('input', async (e)=>{
+    const q = e.target.value.trim();
+    if(q.length < 2) return;
+    try{
+      const resultados = await buscarMedicamentos(q);
+      if(resultados.length){
+        const resultsEl = document.getElementById('medResults');
+        resultsEl.innerHTML = '';
+        resultados.forEach(item=>{
+          const row = document.createElement('div');
+          row.className = 'search-result-item';
+          row.innerHTML = `<span>${item.nombre}</span><span class="add-chip">agregar</span>`;
+          row.addEventListener('click', ()=>{
+            if(!medsSel.find(m=>m.name===item.nombre)){
+              medsSel.push({name:item.nombre});
+              renderSelected('medicamentosSeleccionados', medsSel, m=>m.name, m=>m.name);
+            }
+            e.target.value=''; resultsEl.innerHTML='';
+          });
+          resultsEl.appendChild(row);
+        });
+      }
+    } catch(err){ /* respaldo local */ }
+  });
+
+  // ---------- Importar catálogos también hacia Supabase ----------
+  document.getElementById('cie10File').addEventListener('change', async ()=>{
+    setTimeout(async ()=>{
+      try{
+        await importarCatalogoCie(CIE10.map(c=>({codigo:c.code, nombre:c.name})));
+        showToast('Catálogo CIE también guardado en la base de datos');
+      } catch(err){ console.warn('No se pudo subir el catálogo a Supabase:', err.message); }
+    }, 800);
+  });
+  document.getElementById('medFile').addEventListener('change', async ()=>{
+    setTimeout(async ()=>{
+      try{
+        await importarCatalogoMedicamentos(MEDICAMENTOS.map(m=>({nombre:m.name})));
+        showToast('Base de medicamentos también guardada en la base de datos');
+      } catch(err){ console.warn('No se pudo subir la base a Supabase:', err.message); }
+    }, 800);
+  });
+
+  cargarPaciente();
+</script>
+</body>
+</html>
