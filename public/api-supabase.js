@@ -138,6 +138,35 @@ export async function listarConsultasDePaciente(pacienteId){
   return data;
 }
 
+export async function guardarDiagnosticosConsulta(consultaId, codigos){
+  if(!codigos.length) return;
+  const filas = codigos.map(codigo=>({ consulta_id:consultaId, codigo_cie:codigo }));
+  const { error } = await supabase.from('consulta_diagnosticos').insert(filas);
+  if(error) throw error;
+}
+
+export async function guardarMedicamentosConsulta(consultaId, items){
+  // items = [{ nombre, indicacion }]
+  if(!items.length) return;
+  const filas = items.map(i=>({ consulta_id:consultaId, indicacion:i.indicacion || i.nombre }));
+  const { error } = await supabase.from('consulta_medicamentos').insert(filas);
+  if(error) throw error;
+}
+
+export async function guardarLaboratorioConsulta(consultaId, estudioIds){
+  if(!estudioIds.length) return;
+  const filas = estudioIds.map(id=>({ consulta_id:consultaId, estudio_id:id }));
+  const { error } = await supabase.from('consulta_laboratorio').insert(filas);
+  if(error) throw error;
+}
+
+export async function crearCita(datos){
+  // datos = { paciente_id, consulta_origen_id, fecha_hora, motivo }
+  const { data, error } = await supabase.from('citas').insert(datos).select().single();
+  if(error) throw error;
+  return data;
+}
+
 // ============================================================================
 // COBROS
 // ============================================================================
